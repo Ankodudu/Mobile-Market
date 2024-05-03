@@ -51,63 +51,42 @@ module mobile_market::mobile_market {
     }
     
     // Accessors
-        public entry fun get_product_description(product: &Farmer): vector<u8> {
-        product.bio
+    public fun get_product_description(product: &Farmer): &vector<u8> {
+        &product.bio
     }
-    
-    public entry fun get_product_price(product: &Farmer): u64 {
+
+    public fun get_product_price(product: &Farmer): u64 {
         product.price
     }
 
-    public entry fun get_product_status(product: &Farmer): vector<u8> {
-        product.status
+    public fun get_product_status(product: &Farmer): &vector<u8> {
+        &product.status
     }
     
     // Public Entry functions
     
-    public entry fun add_product(name: String, bio: vector<u8>, category: vector<u8>, price: u64, status: vector<u8>, ctx: &mut TxContext) {
-        let product_id = object::new(ctx);
-        
-        transfer::share_object(Farmer {
-            id: product_id,
-            name: name,
-            farmer: tx_context::sender(ctx),
-            consumer: none(),
-            bio: bio,
-            category: category,
-            rating: none(),
-            status: status,
-            price: price,
-            escrow: balance::zero(),
-            productSold: false,
-            dispute: false,
-        });
-    }
-
-    // Bid for a Product
+// Bid for a product
     public entry fun product_bid(product: &mut Farmer, ctx: &mut TxContext) {
         assert!(!is_some(&product.consumer), EInvalidBid);
-        product.consumer = some(tx_context::sender(ctx));
+        let sender = tx_context::sender(ctx);
+        product.consumer = some(sender);
     }
-    
-    // Accept a bid(Farmer)
+
+    // Accept a bid (Farmer)
     public entry fun accept_bid(product: &mut Farmer, ctx: &mut TxContext) {
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         assert!(is_some(&product.consumer), EInvalidBid);
-        let _consumer = *borrow(&product.consumer);
         product.consumer = none();
         product.productSold = true;
     }
-    
 
     // Mark product as sold
-    public entry fun mark_prroduct_sold(product: &mut Farmer, ctx: &mut TxContext){
+    public entry fun mark_product_sold(product: &mut Farmer, ctx: &mut TxContext) {
         assert!(contains(&product.consumer, &tx_context::sender(ctx)), EInvalidProduct);
-
         product.productSold = true;
     }
-    
-    // Raise a complain
+
+    // Raise a complaint
     public entry fun dispute_product(product: &mut Farmer, ctx: &mut TxContext) {
         assert!(product.farmer == tx_context::sender(ctx), EDispute);
         product.dispute = true;
@@ -128,14 +107,14 @@ module mobile_market::mobile_market {
             // Refund funds to the farmer
             transfer::public_transfer(escrow_coin, product.farmer);
         };
-        
+
         // Reset product state
         product.consumer = none();
         product.productSold = false;
         product.dispute = false;
     }
 
-    // Release Funds to the farmer
+    // Release payment to the farmer
     public entry fun release_payment(product: &mut Farmer, ctx: &mut TxContext) {
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         assert!(product.productSold && !product.dispute, EInvalidProduct);
@@ -148,7 +127,7 @@ module mobile_market::mobile_market {
         // Transfer funds to the farmer
         transfer::public_transfer(escrow_coin, farmer);
 
-        // Cretae a new product record
+        // Create a new product record
         let productRecord = ProductRecord {
             id: object::new(ctx),
             farmer: product.farmer,
@@ -161,7 +140,52 @@ module mobile_market::mobile_market {
         product.consumer = none();
         product.productSold = true;
         product.dispute = false;
-        
+    }
+
+    // Add more cash to escrow
+    public entry fun add_to_escrow(product: &mut Farmer, amount: Coin<SUI>, ctx: &mut TxContext) {
+        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
+        let added_balance = coin::into_balance(amount);
+        balance::join(&mut product.escrow, added_balance);
+    }
+
+    // Withdraw funds from escrow
+    public entry fun withdraw_from_escrow(cap: &FarmerCap, product: &mut Farmer, amount: u64, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
+        assert!(product.productSold == false, EInvalidWithdrawal);
+        let escrow_amount = balance::value(&product.escrow);
+        assert!(escrow_amount >= amount, EInsufficientEscrow);
+        let escrow_coin = coin::take(&mut product.escrow, amount, ctx);
+        transfer::public_transfer(escrow_coin, tx_context::sender(ctx));
+    }
+
+    // Update the product category
+    public entry fun update_product_category(cap: &FarmerCap, product: &mut Farmer, category: vector<u8>, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.category = category;
+    }
+
+    // Update the product description
+    public entry fun update_product_description(cap: &FarmerCap, product: &mut Farmer, bio: vector<u8>, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.bio = bio;
+    }
+
+    // Update the product price
+    public entry fun update_product_price(cap: &FarmerCap, product: &mut Farmer, price: u64, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.price = price;
+    }
+
+    // Update the product status
+    public entry fun update_product_status(cap: &FarmerCap, product: &mut Farmer, status: vector<u8>, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.status = status;
     }
 
     // Add more cash to escrow
@@ -196,6 +220,149 @@ module mobile_market::mobile_market {
         product.bio = bio;
     }
     
+    // Update the product price
+    public entry fun update_product_price(cap: &FarmerCap, product: &mut Farmer, price: u64, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.price = price;
+    }
+
+    // Update the product status
+    public entry fun update_product_status(cap: &FarmerCap, product: &mut Farmer, status: vector<u8>, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.status = status;
+    }
+
+     // Add a new product
+    public entry fun add_product(name: String, bio: vector<u8>, category: vector<u8>, price: u64, status: vector<u8>, ctx: &mut TxContext) {
+        let product_id = object::new(ctx);
+
+        transfer::share_object(Farmer {
+            id: product_id,
+            name: name,
+            farmer: tx_context::sender(ctx),
+            consumer: none(),
+            bio: bio,
+            category: category,
+            rating: none(),
+            status: status,
+            price: price,
+            escrow: balance::zero(),
+            productSold: false,
+            dispute: false,
+        });
+    }
+
+    // Bid for a product
+    public entry fun product_bid(product: &mut Farmer, ctx: &mut TxContext) {
+        assert!(!is_some(&product.consumer), EInvalidBid);
+        product.consumer = some(tx_context::sender(ctx));
+    }
+
+    // Accept a bid (Farmer)
+    public entry fun accept_bid(product: &mut Farmer, ctx: &mut TxContext) {
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        assert!(is_some(&product.consumer), EInvalidBid);
+        let _consumer = *borrow(&product.consumer);
+        product.consumer = none();
+        product.productSold = true;
+    }
+
+    // Mark product as sold
+    public entry fun mark_product_sold(product: &mut Farmer, ctx: &mut TxContext) {
+        assert!(contains(&product.consumer, &tx_context::sender(ctx)), EInvalidProduct);
+        product.productSold = true;
+    }
+
+    // Raise a complaint
+    public entry fun dispute_product(product: &mut Farmer, ctx: &mut TxContext) {
+        assert!(product.farmer == tx_context::sender(ctx), EDispute);
+        product.dispute = true;
+    }
+
+    // Resolve dispute if any between farmer and consumer
+    public entry fun resolve_dispute(product: &mut Farmer, resolved: bool, ctx: &mut TxContext) {
+        assert!(product.farmer == tx_context::sender(ctx), EDispute);
+        assert!(product.dispute, EAlreadyResolved);
+        assert!(is_some(&product.consumer), EInvalidBid);
+        let escrow_amount = balance::value(&product.escrow);
+        let escrow_coin = coin::take(&mut product.escrow, escrow_amount, ctx);
+        if (resolved) {
+            let consumer = *borrow(&product.consumer);
+            // Transfer funds to the consumer
+            transfer::public_transfer(escrow_coin, consumer);
+        } else {
+            // Refund funds to the farmer
+            transfer::public_transfer(escrow_coin, product.farmer);
+        };
+
+        // Reset product state
+        product.consumer = none();
+        product.productSold = false;
+        product.dispute = false;
+    }
+
+    // Release payment to the farmer
+    public entry fun release_payment(product: &mut Farmer, ctx: &mut TxContext) {
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        assert!(product.productSold && !product.dispute, EInvalidProduct);
+        assert!(is_some(&product.consumer), EInvalidBid);
+
+        let farmer = *borrow(&product.consumer);
+        let escrow_amount = balance::value(&product.escrow);
+        assert!(escrow_amount > 0, EInsufficientEscrow);
+        let escrow_coin = coin::take(&mut product.escrow, escrow_amount, ctx);
+        // Transfer funds to the farmer
+        transfer::public_transfer(escrow_coin, farmer);
+
+        // Create a new product record
+        let productRecord = ProductRecord {
+            id: object::new(ctx),
+            farmer: product.farmer,
+        };
+
+        // Change access control to the product record
+        transfer::public_transfer(productRecord, tx_context::sender(ctx));
+
+        // Reset product state
+        product.consumer = none();
+        product.productSold = true;
+        product.dispute = false;
+    }
+
+    // Add more cash to escrow
+    public entry fun add_to_escrow(product: &mut Farmer, amount: Coin<SUI>, ctx: &mut TxContext) {
+        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
+        let added_balance = coin::into_balance(amount);
+        balance::join(&mut product.escrow, added_balance);
+    }
+
+    // Withdraw funds from escrow
+    public entry fun withdraw_from_escrow(cap: &FarmerCap, product: &mut Farmer, amount: u64, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
+        assert!(product.productSold == false, EInvalidWithdrawal);
+        let escrow_amount = balance::value(&product.escrow);
+        assert!(escrow_amount >= amount, EInsufficientEscrow);
+        let escrow_coin = coin::take(&mut product.escrow, amount, ctx);
+        transfer::public_transfer(escrow_coin, tx_context::sender(ctx));
+    }
+
+    // Update the product category
+    public entry fun update_product_category(cap: &FarmerCap, product: &mut Farmer, category: vector<u8>, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.category = category;
+    }
+
+    // Update the product description
+    public entry fun update_product_description(cap: &FarmerCap, product: &mut Farmer, bio: vector<u8>, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
+        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        product.bio = bio;
+    }
+
     // Update the product price
     public entry fun update_product_price(cap: &FarmerCap, product: &mut Farmer, price: u64, ctx: &mut TxContext) {
         assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
