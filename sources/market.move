@@ -9,7 +9,7 @@ module MobileMarket::market {
     use sui::tx_context::{Self, TxContext, sender};
     use sui::table::{Self, Table};
     
-    use std::option::{Option, none, some, is_some, contains, borrow};
+    use std::option::{Option, none, some, contains, borrow};
     use std::string::{String};
     use std::vector::{Self};
     
@@ -19,11 +19,9 @@ module MobileMarket::market {
     const ERROR_WRONG_ADDRESS: u64 = 3;
     const ERROR_INSUFFCIENT_FUNDS: u64 = 4;
     const ENotConsumer: u64 = 5;
-    const EInvalidWithdrawal: u64 = 6;
-    const EInsufficientEscrow: u64 = 7;
-    const ERROR_INVALID_CAP :u64 = 8;
-    const ERROR_FARM_CLOSED: u64 = 9;
-    const ERROR_INVALID_SKILL: u64 = 10;
+    const ERROR_INVALID_CAP :u64 = 6;
+    const ERROR_FARM_CLOSED: u64 = 7;
+    const ERROR_INVALID_SKILL: u64 = 8;
     
     // Struct definitions
 
@@ -186,5 +184,4 @@ module MobileMarket::market {
         assert!(contains(&product.consumer, &tx_context::sender(ctx)), EInvalidProduct);
         product.rating = some(rating);
     }
-
 }
