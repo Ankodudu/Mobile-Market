@@ -124,20 +124,9 @@ module MobileMarket::market {
         assert!(!farm.dispute, ERROR_FARM_CLOSED);
         table::add(&mut farm.persons, sender(ctx), worker);
     }
-
-  
-    
-
-    // Mark product as sold
-    public entry fun mark_prroduct_sold(product: &mut Farmer, ctx: &mut TxContext){
-        assert!(contains(&product.consumer, &tx_context::sender(ctx)), EInvalidProduct);
-
-        product.productSold = true;
-    }
-    
     // Raise a complain
-    public entry fun dispute_product(product: &mut Farmer, ctx: &mut TxContext) {
-        assert!(product.farmer == tx_context::sender(ctx), EDispute);
+    public entry fun dispute_product(cap: &FarmerCap, product: &mut Farmer) {
+        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
         product.dispute = true;
     }
 
