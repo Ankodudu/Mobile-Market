@@ -28,13 +28,13 @@ module MobileMarket::market {
         id: UID,
         farmer: address,
         name: String,
-        bio: vector<u8>,
-        category: vector<u8>,
+        bio: String,
+        category: String,
         price: u64,
         escrow: Balance<SUI>,
         dispute: bool,
         rating: Option<u64>,
-        status: vector<u8>,
+        status: String,
         consumer: Option<address>,
         productSold: bool,
     }
@@ -52,7 +52,7 @@ module MobileMarket::market {
     }
     
     // Accessors
-        public entry fun get_product_description(product: &Farmer): vector<u8> {
+        public entry fun get_product_description(product: &Farmer): String {
         product.bio
     }
     
@@ -60,13 +60,13 @@ module MobileMarket::market {
         product.price
     }
 
-    public entry fun get_product_status(product: &Farmer): vector<u8> {
+    public entry fun get_product_status(product: &Farmer): String {
         product.status
     }
     
     // Public Entry functions
     
-    public entry fun add_product(name: String, bio: vector<u8>, category: vector<u8>, price: u64, status: vector<u8>, ctx: &mut TxContext) {
+    public entry fun add_product(name: String, bio: String, category: String, price: u64, status: String, ctx: &mut TxContext) {
         let product_id = object::new(ctx);
         transfer::share_object(Farmer {
             id: product_id,
@@ -183,14 +183,14 @@ module MobileMarket::market {
     }
     
     // Update the product category
-    public entry fun update_product_category(cap: &FarmerCap, product: &mut Farmer, category: vector<u8>, ctx: &mut TxContext) {
+    public entry fun update_product_category(cap: &FarmerCap, product: &mut Farmer, category: String, ctx: &mut TxContext) {
         assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         product.category = category;
     }
     
     // Update the product description
-    public entry fun update_product_description(cap: &FarmerCap, product: &mut Farmer, bio: vector<u8>, ctx: &mut TxContext) {
+    public entry fun update_product_description(cap: &FarmerCap, product: &mut Farmer, bio: String, ctx: &mut TxContext) {
         assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         product.bio = bio;
@@ -204,7 +204,7 @@ module MobileMarket::market {
     }
 
     // Update the product status
-    public entry fun update_product_status(cap: &FarmerCap, product: &mut Farmer, status: vector<u8>, ctx: &mut TxContext) {
+    public entry fun update_product_status(cap: &FarmerCap, product: &mut Farmer, status: String, ctx: &mut TxContext) {
         assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         product.status = status;
