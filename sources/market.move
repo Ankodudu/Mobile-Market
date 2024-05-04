@@ -17,7 +17,7 @@ module MobileMarket::market {
     const EInvalidBid: u64 = 1;
     const EInvalidProduct: u64 = 2;
     const EDispute: u64 = 3;
-    const EAlreadyResolved: u64 = 4;
+    const ERROR_INSUFFCIENT_FUNDS: u64 = 4;
     const ENotConsumer: u64 = 5;
     const EInvalidWithdrawal: u64 = 6;
     const EInsufficientEscrow: u64 = 7;
@@ -130,26 +130,20 @@ module MobileMarket::market {
         product.dispute = true;
     }
 
-    // Resolve dispute if any between farmer and consumer
-    public entry fun resolve_dispute(product: &mut Farmer, resolved: bool, ctx: &mut TxContext) {
-        assert!(product.farmer == tx_context::sender(ctx), EDispute);
-        assert!(product.dispute, EAlreadyResolved);
-        assert!(is_some(&product.consumer), EInvalidBid);
-        let escrow_amount = balance::value(&product.escrow);
-        let escrow_coin = coin::take(&mut product.escrow, escrow_amount, ctx);
-        if (resolved) {
-            let consumer = *borrow(&product.consumer);
-            // Transfer funds to the consumer
-            transfer::public_transfer(escrow_coin, consumer);
-        } else {
-            // Refund funds to the farmer
-            transfer::public_transfer(escrow_coin, product.farmer);
-        };
-        
-        // Reset product state
-        product.consumer = none();
-        product.productSold = false;
-        product.dispute = false;
+     // farmwork owner should choose worker and send to worker object to choosen.
+    public fun choose(cap: &FarmerCap, farm: &mut Farmer, coin: Coin<SUI>, choosen: address) : Person {
+        assert!(cap.farmer_id == object::id(farm), ERROR_INVALID_CAP);
+        assert!(coin::value(&coin) >= farm.price, ERROR_INSUFFCIENT_FUNDS);
+
+        let worker = table::remove(&mut farm.persons, choosen);
+        let balance_ = coin::into_balance(coin);
+        // submit the worker balance 
+        balance::join(&mut farm.escrow, balance_);
+        // farm closed. 
+        farm.productSold = true;
+        // set the worker address 
+        farm.consumer = some(choosen);
+        worker
     }
 
     // Release Funds to the farmer
