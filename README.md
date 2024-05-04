@@ -158,13 +158,13 @@ struct Farmer has key, store {
   id: UID,
   farmer: address,
   name: String,
-  bio: vector<u8>,
-  category: vector<u8>,
+  bio: String,
+  category: String,
   price: u64,
   escrow: Balance<SUI>,
   dispute: bool,
   rating: Option<u64>,
-  status: vector<u8>,
+  status: String,
   consumer: Option<address>,
   productSold: bool,
 }
@@ -185,10 +185,10 @@ struct FarmerCap has key {
 
 - **Parameters**:
   - name: `String`
-  - bio: `vector<u8>`
-  - category: `vector<u8>`
+  - bio: `String`
+  - category: `String`
   - price: `u64`
-  - status: `vector<u8>`
+  - status: `String`
   - ctx: `&mut TxContext`
 
 - **Description**: Allows farmers to list their products on the marketplace, setting the price, description, and other relevant details.
@@ -269,7 +269,7 @@ struct FarmerCap has key {
 
 - **Parameters**:
   - product_id: `UID`
-  - new_details: `vector<u8>` (new price, description, etc.)
+  - new_details: `String` (new price, description, etc.)
   - ctx: `&mut TxContext`
 
 - **Description**: Allows farmers to update details about their products, such as price, quantity, or description.
