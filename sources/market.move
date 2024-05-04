@@ -14,9 +14,9 @@ module MobileMarket::market {
     use std::vector::{Self};
     
     // Errors
-    const EInvalidBid: u64 = 1;
+    const ERROR_WORK_NOT_SUBMIT: u64 = 1;
     const EInvalidProduct: u64 = 2;
-    const EDispute: u64 = 3;
+    const ERROR_WRONG_ADDRESS: u64 = 3;
     const ERROR_INSUFFCIENT_FUNDS: u64 = 4;
     const ENotConsumer: u64 = 5;
     const EInvalidWithdrawal: u64 = 6;
@@ -39,7 +39,7 @@ module MobileMarket::market {
         persons: Table<address, Person>,
         dispute: bool,
         rating: Option<u64>,
-        status: String,
+        status: bool,
         consumer: Option<address>,
         productSold: bool,
     }
@@ -73,7 +73,7 @@ module MobileMarket::market {
         product.price
     }
 
-    public entry fun get_product_status(product: &Farmer): String {
+    public entry fun get_product_status(product: &Farmer): bool {
         product.status
     }
     
@@ -90,7 +90,7 @@ module MobileMarket::market {
             bio: bio,
             category: category,
             rating: none(),
-            status: status,
+            status: false,
             price: price,
             escrow: balance::zero(),
             persons: table::new(ctx),
@@ -146,33 +146,19 @@ module MobileMarket::market {
         worker
     }
 
-    // Release Funds to the farmer
-    public entry fun release_payment(product: &mut Farmer, ctx: &mut TxContext) {
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
-        assert!(product.productSold && !product.dispute, EInvalidProduct);
-        assert!(is_some(&product.consumer), EInvalidBid);
+    public fun submit_work(self: &mut Farmer, ctx: &mut TxContext) {
+        assert!(*borrow(&self.consumer) == sender(ctx), ERROR_WRONG_ADDRESS);
+        self.status = true;
+    }
 
-        let farmer = *borrow(&product.consumer);
-        let escrow_amount = balance::value(&product.escrow);
-        assert!(escrow_amount > 0, EInsufficientEscrow);
-        let escrow_coin = coin::take(&mut product.escrow, escrow_amount, ctx);
-        // Transfer funds to the farmer
-        transfer::public_transfer(escrow_coin, farmer);
-
-        // Cretae a new product record
-        let productRecord = ProductRecord {
-            id: object::new(ctx),
-            farmer: product.farmer,
-        };
-
-        // Change access control to the product record
-        transfer::public_transfer(productRecord, tx_context::sender(ctx));
-
-        // Reset product state
-        product.consumer = none();
-        product.productSold = true;
-        product.dispute = false;
+    public fun confirm_work(cap: &FarmerCap, self: &mut Farmer, ctx: &mut TxContext) {
+        assert!(cap.farmer_id == object::id(self), ERROR_INVALID_CAP);
+        assert!(self.status, ERROR_WORK_NOT_SUBMIT);
         
+        let balance_ = balance::withdraw_all(&mut self.escrow);
+        let coin_ = coin::from_balance(balance_, ctx);
+        
+        transfer::public_transfer(coin_, *borrow(&self.consumer));
     }
 
     // Add more cash to escrow
@@ -213,14 +199,7 @@ module MobileMarket::market {
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         product.price = price;
     }
-
-    // Update the product status
-    public entry fun update_product_status(cap: &FarmerCap, product: &mut Farmer, status: String, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
-        product.status = status;
-    }
-
+    
     // Rate the farmer
     public entry fun rate_farmer(product: &mut Farmer, rating: u64, ctx: &mut TxContext) {
         assert!(contains(&product.consumer, &tx_context::sender(ctx)), EInvalidProduct);
