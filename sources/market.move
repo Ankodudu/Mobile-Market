@@ -6,10 +6,12 @@ module MobileMarket::market {
     use sui::coin::{Self, Coin};
     use sui::object::{Self, UID, ID};
     use sui::balance::{Self, Balance};
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::{Self, TxContext, sender};
+    use sui::table::{Self, Table};
     
     use std::option::{Option, none, some, is_some, contains, borrow};
     use std::string::{String};
+    use std::vector::{Self};
     
     // Errors
     const EInvalidBid: u64 = 1;
@@ -19,7 +21,9 @@ module MobileMarket::market {
     const ENotConsumer: u64 = 5;
     const EInvalidWithdrawal: u64 = 6;
     const EInsufficientEscrow: u64 = 7;
-     const ERROR_INVALID_CAP :u64 = 8;
+    const ERROR_INVALID_CAP :u64 = 8;
+    const ERROR_FARM_CLOSED: u64 = 9;
+    const ERROR_INVALID_SKILL: u64 = 10;
     
     // Struct definitions
 
@@ -32,6 +36,7 @@ module MobileMarket::market {
         category: String,
         price: u64,
         escrow: Balance<SUI>,
+        persons: Table<address, Person>,
         dispute: bool,
         rating: Option<u64>,
         status: String,
@@ -43,6 +48,14 @@ module MobileMarket::market {
     struct FarmerCap has key {
         id: UID,
         farmer_id: ID,
+    }
+
+    struct Person has key, store {
+        id: UID,
+        farm_id: ID,
+        owner: address,
+        description: String,
+        skills: vector<String>
     }
     
     // ProductRecord Struct
@@ -80,6 +93,7 @@ module MobileMarket::market {
             status: status,
             price: price,
             escrow: balance::zero(),
+            persons: table::new(ctx),
             productSold: false,
             dispute: false,
         });
@@ -89,20 +103,29 @@ module MobileMarket::market {
         }   
     }
 
-    // Bid for a Product
-    public entry fun product_bid(product: &mut Farmer, ctx: &mut TxContext) {
-        assert!(!is_some(&product.consumer), EInvalidBid);
-        product.consumer = some(tx_context::sender(ctx));
+      // Users should create new worker for bid 
+    public fun new_worker(farm: ID, description_: String, ctx: &mut TxContext) : Person {
+        let worker = Person {
+            id: object::new(ctx),
+            farm_id: farm,
+            owner: sender(ctx),
+            description: description_,
+            skills: vector::empty()
+        };
+        worker
     }
-    
-    // Accept a bid(Farmer)
-    public entry fun accept_bid(product: &mut Farmer, ctx: &mut TxContext) {
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
-        assert!(is_some(&product.consumer), EInvalidBid);
-        let _consumer = *borrow(&product.consumer);
-        product.consumer = none();
-        product.productSold = true;
+    // users can set new skills
+    public fun add_skill(self: &mut Person, skill: String) {
+        assert!(!vector::contains(&self.skills, &skill), ERROR_INVALID_SKILL);
+        vector::push_back(&mut self.skills, skill);
     }
+    // users can bid to works
+    public fun bid_work(farm: &mut Farmer, worker: Person, ctx: &mut TxContext) {
+        assert!(!farm.dispute, ERROR_FARM_CLOSED);
+        table::add(&mut farm.persons, sender(ctx), worker);
+    }
+
+  
     
 
     // Mark product as sold
