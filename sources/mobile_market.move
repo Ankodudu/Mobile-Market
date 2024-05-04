@@ -2,12 +2,11 @@ module mobile_market::mobile_market {
 
     // Imports
     use sui::transfer;
-    use sui::sui::SUI;
     use sui::coin::{Self, Coin};
-    use sui::object::{Self, UID, ID};
+    use sui::object::{Self, UID, ID, owner};
     use sui::balance::{Self, Balance};
     use sui::tx_context::{Self, TxContext};
-    use std::option::{Option, none, some, is_some, contains, borrow};
+    use std::option::{Option, none, some};
     use std::string::{String};
     
     // Errors
@@ -18,7 +17,7 @@ module mobile_market::mobile_market {
     const ENotConsumer: u64 = 5;
     const EInvalidWithdrawal: u64 = 6;
     const EInsufficientEscrow: u64 = 7;
-     const ERROR_INVALID_CAP :u64 = 8;
+    const ERROR_INVALID_CAP: u64 = 8;
     
     // Struct definitions
 
@@ -51,7 +50,7 @@ module mobile_market::mobile_market {
     }
     
     // Accessors
-        public entry fun get_product_description(product: &Farmer): vector<u8> {
+    public entry fun get_product_description(product: &Farmer): vector<u8> {
         product.bio
     }
     
@@ -107,7 +106,7 @@ module mobile_market::mobile_market {
         product.productSold = true;
     }
     
-    // Raise a complain
+    // Raise a complaint
     public entry fun dispute_product(product: &mut Farmer, ctx: &mut TxContext) {
         assert!(product.farmer == tx_context::sender(ctx), EDispute);
         product.dispute = true;
@@ -148,7 +147,7 @@ module mobile_market::mobile_market {
         // Transfer funds to the farmer
         transfer::public_transfer(escrow_coin, farmer);
 
-        // Cretae a new product record
+        // Create a new product record
         let productRecord = ProductRecord {
             id: object::new(ctx),
             farmer: product.farmer,
@@ -173,9 +172,7 @@ module mobile_market::mobile_market {
 
     // Withdraw funds from escrow
     public entry fun withdraw_from_escrow(cap: &FarmerCap, product: &mut Farmer, amount: u64, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
-        assert!(product.productSold == false, EInvalidWithdrawal);
+        assert!(owner(cap) == tx_context::sender(ctx), ERROR_INVALID_CAP);
         let escrow_amount = balance::value(&product.escrow);
         assert!(escrow_amount >= amount, EInsufficientEscrow);
         let escrow_coin = coin::take(&mut product.escrow, amount, ctx);
@@ -184,29 +181,25 @@ module mobile_market::mobile_market {
     
     // Update the product category
     public entry fun update_product_category(cap: &FarmerCap, product: &mut Farmer, category: vector<u8>, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        assert!(owner(cap) == tx_context::sender(ctx), ERROR_INVALID_CAP);
         product.category = category;
     }
     
     // Update the product description
     public entry fun update_product_description(cap: &FarmerCap, product: &mut Farmer, bio: vector<u8>, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        assert!(owner(cap) == tx_context::sender(ctx), ERROR_INVALID_CAP);
         product.bio = bio;
     }
     
     // Update the product price
     public entry fun update_product_price(cap: &FarmerCap, product: &mut Farmer, price: u64, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        assert!(owner(cap) == tx_context::sender(ctx), ERROR_INVALID_CAP);
         product.price = price;
     }
 
     // Update the product status
     public entry fun update_product_status(cap: &FarmerCap, product: &mut Farmer, status: vector<u8>, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
+        assert!(owner(cap) == tx_context::sender(ctx), ERROR_INVALID_CAP);
         product.status = status;
     }
 
