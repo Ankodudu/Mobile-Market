@@ -52,7 +52,7 @@ module MobileMarket::market {
     }
     
     // Accessors
-        public entry fun get_product_description(product: &Farmer): String {
+    public entry fun get_product_description(product: &Farmer): String {
         product.bio
     }
     
@@ -66,8 +66,9 @@ module MobileMarket::market {
     
     // Public Entry functions
     
-    public entry fun add_product(name: String, bio: String, category: String, price: u64, status: String, ctx: &mut TxContext) {
+    public fun new(name: String, bio: String, category: String, price: u64, status: String, ctx: &mut TxContext) : FarmerCap {
         let product_id = object::new(ctx);
+        let inner_ = object::uid_to_inner(&product_id);
         transfer::share_object(Farmer {
             id: product_id,
             name: name,
@@ -82,6 +83,10 @@ module MobileMarket::market {
             productSold: false,
             dispute: false,
         });
+        FarmerCap{
+            id: object::new(ctx),
+            farmer_id: inner_
+        }   
     }
 
     // Bid for a Product
