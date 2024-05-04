@@ -1,4 +1,4 @@
-module mobile_market::mobile_market {
+module MobileMarket::market {
 
     // Imports
     use sui::transfer;
@@ -7,6 +7,7 @@ module mobile_market::mobile_market {
     use sui::object::{Self, UID, ID};
     use sui::balance::{Self, Balance};
     use sui::tx_context::{Self, TxContext};
+    
     use std::option::{Option, none, some, is_some, contains, borrow};
     use std::string::{String};
     
@@ -67,7 +68,6 @@ module mobile_market::mobile_market {
     
     public entry fun add_product(name: String, bio: vector<u8>, category: vector<u8>, price: u64, status: vector<u8>, ctx: &mut TxContext) {
         let product_id = object::new(ctx);
-        
         transfer::share_object(Farmer {
             id: product_id,
             name: name,
