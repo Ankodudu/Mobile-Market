@@ -160,25 +160,6 @@ module MobileMarket::market {
         
         transfer::public_transfer(coin_, *borrow(&self.consumer));
     }
-
-    // Add more cash to escrow
-    public entry fun add_to_escrow(product: &mut Farmer, amount: Coin<SUI>, ctx: &mut TxContext) {
-        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
-        let added_balance = coin::into_balance(amount);
-        balance::join(&mut product.escrow, added_balance);
-    }
-
-    // Withdraw funds from escrow
-    public entry fun withdraw_from_escrow(cap: &FarmerCap, product: &mut Farmer, amount: u64, ctx: &mut TxContext) {
-        assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
-        assert!(tx_context::sender(ctx) == product.farmer, ENotConsumer);
-        assert!(product.productSold == false, EInvalidWithdrawal);
-        let escrow_amount = balance::value(&product.escrow);
-        assert!(escrow_amount >= amount, EInsufficientEscrow);
-        let escrow_coin = coin::take(&mut product.escrow, amount, ctx);
-        transfer::public_transfer(escrow_coin, tx_context::sender(ctx));
-    }
-    
     // Update the product category
     public entry fun update_product_category(cap: &FarmerCap, product: &mut Farmer, category: String, ctx: &mut TxContext) {
         assert!(cap.farmer_id == object::id(product), ERROR_INVALID_CAP);
@@ -199,7 +180,7 @@ module MobileMarket::market {
         assert!(product.farmer == tx_context::sender(ctx), ENotConsumer);
         product.price = price;
     }
-    
+
     // Rate the farmer
     public entry fun rate_farmer(product: &mut Farmer, rating: u64, ctx: &mut TxContext) {
         assert!(contains(&product.consumer, &tx_context::sender(ctx)), EInvalidProduct);
